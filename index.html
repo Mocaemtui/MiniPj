@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Football Manager – V.League Edition 2025</title>
+  <meta name="description" content="Game giả lập huấn luyện viên bóng đá V.League. Quản lý đội bóng, chiến thuật, chuyển nhượng và thi đấu trực tiếp." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Sidebar Navigation -->
+    <aside id="sidebar" style="display:none">
+      <div class="sidebar-brand">
+        <span class="brand-icon">⚽</span>
+        <span class="brand-name">FM<span class="brand-accent">25</span></span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a class="nav-item" data-screen="dashboard" onclick="router.navigate('dashboard')" id="nav-dashboard">
+          <span class="nav-icon">🏠</span>
+          <span class="nav-label">Dashboard</span>
+        </a>
+        <a class="nav-item" data-screen="standings" onclick="router.navigate('standings')" id="nav-standings">
+          <span class="nav-icon">🏆</span>
+          <span class="nav-label">Bảng Xếp Hạng</span>
+        </a>
+        <a class="nav-item" data-screen="squad" onclick="router.navigate('squad')" id="nav-squad">
+          <span class="nav-icon">👥</span>
+          <span class="nav-label">Đội Hình</span>
+        </a>
+        <a class="nav-item" data-screen="tactics" onclick="router.navigate('tactics')" id="nav-tactics">
+          <span class="nav-icon">🧠</span>
+          <span class="nav-label">Chiến Thuật</span>
+        </a>
+        <a class="nav-item" data-screen="match" onclick="router.navigate('match')" id="nav-match">
+          <span class="nav-icon">⚽</span>
+          <span class="nav-label">Thi Đấu</span>
+          <span class="nav-pulse"></span>
+        </a>
+        <a class="nav-item" data-screen="transfer" onclick="router.navigate('transfer')" id="nav-transfer">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-label">Thị Trường</span>
+        </a>
+        <a class="nav-item" data-screen="negotiations" onclick="router.navigate('negotiations')" id="nav-negotiations">
+          <span class="nav-icon">🤝</span>
+          <span class="nav-label">Đàm Phán</span>
+        </a>
+      </nav>
+
+      <!-- Sidebar footer: Coach info -->
+      <div class="sidebar-footer">
+        <div class="sidebar-coach" id="sidebar-coach">
+          <div class="coach-avatar">👔</div>
+          <div class="coach-info">
+            <div id="header-coach" class="coach-name">Huấn luyện viên</div>
+            <div class="coach-team" id="header-team">–</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main area -->
+    <div id="main-area">
+      <!-- Top header bar -->
+      <header id="top-header" style="display:none">
+        <div class="header-left">
+          <div class="header-stat">
+            <span class="hs-icon">📅</span>
+            <span id="header-date">–</span>
+          </div>
+        </div>
+        <div class="header-center">
+          <div class="header-stat accent">
+            <span class="hs-icon">🏅</span>
+            <span id="header-pos">–</span>
+            <span id="header-pts" style="opacity:.6">–</span>
+          </div>
+          <div class="header-stat">
+            <span class="hs-icon">💰</span>
+            <span id="header-balance">–</span>
+          </div>
+        </div>
+        <div class="header-right">
+          <button class="header-btn btn-secondary" onclick="gameState.saveGame()" title="Lưu game" style="margin-right: 10px; background: rgba(255,255,255,0.1)">💾 Lưu</button>
+          <button class="header-btn" onclick="router.navigate('match')" title="Thi đấu">⚽ Thi đấu</button>
+        </div>
+      </header>
+
+      <!-- Screen content -->
+      <main id="screen-content"></main>
+    </div>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
