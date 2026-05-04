@@ -25,6 +25,24 @@ export function renderMatch(container, router) {
 
   const homeTeam = gameState.getTeamById(next.home);
   const awayTeam = gameState.getTeamById(next.away);
+  
+  // Error handling for missing teams
+  if (!homeTeam || !awayTeam) {
+    container.innerHTML = `
+      <div class="screen-header">
+        <h1 class="screen-title">⚽ Thi Đấu</h1>
+      </div>
+      <div class="glass-card empty-state">
+        <span style="font-size:4rem">❌</span>
+        <h2>Lỗi!</h2>
+        <p>Không thể tải thông tin đội bóng. Vui lòng thử lại.</p>
+        <button class="btn-primary" id="btn-back-dash">Về Dashboard</button>
+      </div>
+    `;
+    container.querySelector("#btn-back-dash")?.addEventListener("click", () => router.navigate("dashboard"));
+    return;
+  }
+  
   const isHome = next.home === gameState.playerTeamId;
   const myTeam = isHome ? homeTeam : awayTeam;
   const oppTeam = isHome ? awayTeam : homeTeam;

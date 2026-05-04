@@ -4,6 +4,20 @@
 
 let playerIdCounter = 1;
 
+// Helper functions for managing player ID counter
+export const getPlayerIdCounter = () => playerIdCounter;
+export const setPlayerIdCounter = (value) => {
+  playerIdCounter = Math.max(1, Math.floor(value));
+};
+export const resetPlayerIdCounter = (players = []) => {
+  if (players.length > 0) {
+    const maxId = Math.max(...players.map(p => p.id || 0));
+    playerIdCounter = maxId + 1;
+  } else {
+    playerIdCounter = 1;
+  }
+};
+
 const createPlayer = (name, pos, age, overall, potential, teamId, wage, value, nationality, attributes) => {
   const isGk = pos === "GK";
   

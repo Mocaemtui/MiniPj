@@ -2,12 +2,30 @@
 // TRANSFER SCREEN
 // ============================================================
 import { gameState, formatCurrency } from "../engine/gameState.js";
+import { POS_COLOR } from "../data/constants.js";
 
 export function renderTransfer(container, router) {
   let searchQuery = "";
   let filterPos = "ALL";
   let sortBy = "overall";
   let viewMode = "market"; // "market" | "myteam"
+  let listeners = []; // Store listeners for cleanup
+
+  function removeListeners() {
+    listeners.forEach(({ element, handler, type }) => {
+      if (element) {
+        element.removeEventListener(type, handler);
+      }
+    });
+    listeners = [];
+  }
+
+  function addListener(element, type, handler) {
+    if (element) {
+      element.addEventListener(type, handler);
+      listeners.push({ element, handler, type });
+    }
+  }
 
   function getMarketPlayers() {
     return gameState.players
@@ -19,12 +37,6 @@ export function renderTransfer(container, router) {
       .filter((p) => filterPos === "ALL" || p.pos === filterPos)
       .sort((a, b) => b[sortBy] - a[sortBy]);
   }
-
-  const POS_COLOR = {
-    GK:"#ffd700", CB:"#4488ff", LB:"#4488ff", RB:"#4488ff",
-    CDM:"#00ff88", CM:"#00ff88", CAM:"#00c8ff", LM:"#00ff88", RM:"#00ff88",
-    LW:"#ff9900", RW:"#ff9900", ST:"#ff4444"
-  };
 
   function draw() {
     const fin = gameState.getMyFinance();
@@ -161,46 +173,79 @@ export function renderTransfer(container, router) {
     `;
 
     // Attach Event Listeners
-    container.querySelector("#search-player")?.addEventListener("input", (e) => {
-      searchQuery = e.target.value;
-      draw();
-    });
-
-    container.querySelectorAll(".filter-btn-tr").forEach(btn => {
-      btn.addEventListener("click", () => {
-        filterPos = btn.dataset.pos;
-        draw();
-      });
-    });
-
-    container.querySelector("#sort-players")?.addEventListener("change", (e) => {
-      sortBy = e.target.value;
-      draw();
-    });
-
-    container.querySelectorAll(".btn-buy-tr").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const id = parseInt(btn.dataset.id);
-        const player = gameState.getPlayerById(id);
-        if (!player) return;
-        
-        gameState.startNegotiation(player.id);
-        router.navigate("negotiations");
-      });
-    });
-
-    container.querySelectorAll(".btn-sell-tr").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const id = parseInt(btn.dataset.id);
-        const p = gameState.getPlayerById(id);
-        if (!p) return;
-        if (confirm(`Bán ${p.name} với giá ${formatCurrency(p.value)}?`)) {
-          gameState.sellPlayer(id, p.value);
-          showToast(`💰 Đã bán ${p.name}!`);
+    try {
+      removeListeners(); // Clean up old listeners
+      
+      const searchInput = container.querySelector("#search-player");
+      if (searchInput) {
+        const handler = (e) => {
+          searchQuery = e.target.value;
           draw();
-        }
+        };
+        addListener(searchInput, "input", handler);
+      }
+
+      container.querySelectorAll(".filter-btn-tr").forEach(btn => {
+        const handler = () => {
+          filterPos = btn.dataset.pos;
+          draw();
+        };
+        addListener(btn, "click", handler);
       });
-    });
+
+      const sortSelect = container.querySelector("#sort-players");
+      if (sortSelect) {
+        const handler = (e) => {
+          sortBy = e.target.value;
+          draw();
+        };
+        addListener(sortSelect, "change", handler);
+      }
+
+      container.querySelectorAll(".btn-buy-tr").forEach(btn => {
+        const handler = () => {
+          try {
+            const id = parseInt(btn.dataset.id);
+            const player = gameState.getPlayerById(id);
+            if (!player) {
+              alert("❌ Không tìm thấy cầu thủ!");
+              return;
+            }
+            
+            gameState.startNegotiation(player.id);
+            router.navigate("negotiations");
+          } catch (e) {
+            console.error("Error starting negotiation:", e);
+            alert("❌ Lỗi khi bắt đầu thương thảo!");
+          }
+        };
+        addListener(btn, "click", handler);
+      });
+
+      container.querySelectorAll(".btn-sell-tr").forEach(btn => {
+        const handler = () => {
+          try {
+            const id = parseInt(btn.dataset.id);
+            const p = gameState.getPlayerById(id);
+            if (!p) {
+              alert("❌ Không tìm thấy cầu thủ!");
+              return;
+            }
+            if (confirm(`Bán ${p.name} với giá ${formatCurrency(p.value)}?`)) {
+              gameState.sellPlayer(id, p.value);
+              showToast(`💰 Đã bán ${p.name}!`);
+              draw();
+            }
+          } catch (e) {
+            console.error("Error selling player:", e);
+            alert("❌ Lỗi khi bán cầu thủ!");
+          }
+        };
+        addListener(btn, "click", handler);
+      });
+    } catch (e) {
+      console.error("Error attaching event listeners in transfer:", e);
+    }
   }
 
   draw();

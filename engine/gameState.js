@@ -2,7 +2,7 @@
 // GAME STATE – Singleton global state manager
 // ============================================================
 import { TEAMS } from "../data/teams.js";
-import { PLAYERS } from "../data/players.js";
+import { PLAYERS, getPlayerIdCounter, setPlayerIdCounter } from "../data/players.js";
 import { LEAGUES, generateSchedule, initLeagueTable, sortTable } from "../data/leagues.js";
 
 class GameState {
@@ -45,41 +45,56 @@ class GameState {
 
   // ---- Initialization ----
   init(coachName, teamId) {
-    this.coach = { name: coachName, nationality: "VN", reputation: 50 };
-    this.playerTeamId = teamId;
-    this.negotiations = []; // Clear on new game
-    const team = this.getMyTeam();
+    try {
+      const team = this.getTeamById(teamId);
+      if (!team) {
+        throw new Error(`Invalid team ID: ${teamId}`);
+      }
+      
+      this.coach = { name: coachName, nationality: "VN", reputation: 50 };
+      this.playerTeamId = teamId;
+      this.negotiations = []; // Clear on new game
 
-    // Setup finance
-    this.finance[teamId] = {
-      balance: team.budget,
-      weeklyWage: team.wage,
-      income: { matchday: 0, sponsorship: 50000, prize: 0 },
-      expenses: { wages: 0, transfers: 0, facilities: 0 },
-      history: [],
-    };
+      // Setup finance
+      this.finance[teamId] = {
+        balance: team.budget,
+        weeklyWage: team.wage,
+        income: { matchday: 0, sponsorship: 50000, prize: 0 },
+        expenses: { wages: 0, transfers: 0, facilities: 0 },
+        history: [],
+      };
 
-    // Generate schedule
-    const teamIds = this.leagues[0].teams;
-    this.schedule = generateSchedule(teamIds);
-    this.leagueTable = initLeagueTable(teamIds);
+      // Generate schedule
+      const teamIds = this.leagues[0]?.teams || [];
+      this.schedule = generateSchedule(teamIds);
+      this.leagueTable = initLeagueTable(teamIds);
 
-    // Default lineup: first 11 players of team
-    const myPlayers = this.players.filter((p) => p.teamId === teamId);
-    this.lineup = myPlayers.slice(0, 11).map((p) => p.id);
+      // Default lineup: first 11 players of team
+      const myPlayers = this.players.filter((p) => p.teamId === teamId);
+      this.lineup = myPlayers.slice(0, 11).map((p) => p.id);
 
-    // Initialize stats for all players if they don't exist
-    this.players.forEach(p => {
-      p.goals = p.goals || 0;
-      p.assists = p.assists || 0;
-      p.appearances = p.appearances || 0;
-      p.morale = p.morale || 70;
-      p.fitness = p.fitness || 100;
-    });
+      // Initialize stats for all players if they don't exist
+      this.players.forEach(p => {
+        if (!p) return;
+        p.goals = p.goals || 0;
+        p.assists = p.assists || 0;
+        p.appearances = p.appearances || 0;
+        p.morale = p.morale || 70;
+        p.fitness = p.fitness || 100;
+        // Ensure attributes exist
+        if (!p.attributes) {
+          p.attributes = { technical: {}, mental: {}, physical: {} };
+        }
+      });
 
-    this.initialized = true;
-    this.addNews("🎉 Chào mừng bạn trở thành HLV mới!", `Bạn đã được bổ nhiệm làm huấn luyện viên trưởng của ${team.name}.`);
-    this.emit("stateChanged");
+      this.initialized = true;
+      this.addNews("🎉 Chào mừng bạn trở thành HLV mới!", `Bạn đã được bổ nhiệm làm huấn luyện viên trưởng của ${team.name}.`);
+      this.emit("stateChanged");
+    } catch (e) {
+      console.error("Error initializing game:", e);
+      this.addNotification("❌ Lỗi khi bắt đầu game!", "error");
+      throw e;
+    }
   }
 
   // ---- Getters ----
@@ -408,31 +423,36 @@ class GameState {
 
   // ---- Save/Load System ----
   saveGame(silent = false) {
-    const saveData = {
-      initialized: this.initialized,
-      coach: this.coach,
-      playerTeamId: this.playerTeamId,
-      season: this.season,
-      week: this.week,
-      date: this.date.toISOString(),
-      teams: this.teams,
-      players: this.players,
-      leagues: this.leagues,
-      schedule: this.schedule,
-      leagueTable: this.leagueTable,
-      finance: this.finance,
-      news: this.news,
-      selectedFormation: this.selectedFormation,
-      lineup: this.lineup,
-      tactics: this.tactics,
-    };
     try {
+      const saveData = {
+        initialized: this.initialized,
+        coach: this.coach,
+        playerTeamId: this.playerTeamId,
+        season: this.season,
+        week: this.week,
+        date: this.date.toISOString(),
+        teams: this.teams,
+        players: this.players,
+        leagues: this.leagues,
+        schedule: this.schedule,
+        leagueTable: this.leagueTable,
+        finance: this.finance,
+        news: this.news,
+        selectedFormation: this.selectedFormation,
+        lineup: this.lineup,
+        tactics: this.tactics,
+        playerIdCounter: getPlayerIdCounter(),
+      };
       localStorage.setItem("fm26_save", JSON.stringify(saveData));
       if (!silent) this.addNotification("💾 Đã lưu game thành công!", "success");
       return true;
     } catch (e) {
       console.error("Save failed", e);
-      if (!silent) this.addNotification("❌ Lỗi khi lưu game!", "error");
+      if (e.name === 'QuotaExceededError') {
+        if (!silent) this.addNotification("💾 Bộ nhớ trình duyệt đầy. Vui lòng xóa một số file lưu cũ.", "error");
+      } else {
+        if (!silent) this.addNotification("❌ Lỗi khi lưu game!", "error");
+      }
       return false;
     }
   }
@@ -443,6 +463,10 @@ class GameState {
       if (!dataStr) return false;
       
       const data = JSON.parse(dataStr);
+      if (!data.playerTeamId) {
+        throw new Error('Invalid save format: missing playerTeamId');
+      }
+      
       this.initialized = data.initialized;
       this.coach = data.coach;
       this.playerTeamId = data.playerTeamId;
@@ -450,22 +474,28 @@ class GameState {
       this.week = data.week;
       this.date = new Date(data.date);
       this.teams = data.teams;
-      this.players = data.players;
+      this.players = data.players || [];
       this.leagues = data.leagues;
       this.schedule = data.schedule;
       this.leagueTable = data.leagueTable;
       this.finance = data.finance;
       this.news = data.news || [];
       this.selectedFormation = data.selectedFormation;
-      this.lineup = data.lineup;
+      this.lineup = data.lineup || [];
       this.tactics = data.tactics;
       this.negotiations = [];
       this.notifications = [];
+      
+      // Restore player ID counter
+      if (data.playerIdCounter) {
+        setPlayerIdCounter(data.playerIdCounter);
+      }
       
       this.emit("stateChanged");
       return true;
     } catch (e) {
       console.error("Load failed", e);
+      this.addNotification("❌ Không thể tải game. File lưu có thể bị hỏng.", "error");
       return false;
     }
   }

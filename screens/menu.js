@@ -105,10 +105,15 @@ export function renderMenu(container, router) {
     const continueBtn = container.querySelector("#btn-continue-game");
     if (continueBtn) {
       continueBtn.addEventListener("click", () => {
-        if (gameState.loadGame()) {
-          router.navigate("dashboard");
-        } else {
-          alert("Không thể tải file lưu!");
+        try {
+          if (gameState.loadGame()) {
+            router.navigate("dashboard");
+          } else {
+            alert("❌ Không thể tải file lưu!");
+          }
+        } catch (e) {
+          console.error("Error loading game:", e);
+          alert("❌ Lỗi khi tải game!");
         }
       });
     }
@@ -142,9 +147,45 @@ export function renderMenu(container, router) {
     const startBtn = container.querySelector("#btn-start-game");
     if (startBtn) {
       startBtn.addEventListener("click", () => {
-        const coachName = document.getElementById("coach-name").value.trim() || "Huấn luyện viên";
-        gameState.init(coachName, selectedTeamId);
-        router.navigate("dashboard");
+        try {
+          const coachNameInput = document.getElementById("coach-name");
+          if (!coachNameInput) {
+            alert("❌ Không tìm thấy trường tên huấn luyện viên!");
+            return;
+          }
+          
+          const coachName = coachNameInput.value.trim();
+          
+          // Validation
+          if (!coachName) {
+            alert("❌ Tên huấn luyện viên không được để trống!");
+            coachNameInput.focus();
+            return;
+          }
+          
+          if (coachName.length < 2) {
+            alert("❌ Tên phải có ít nhất 2 ký tự!");
+            coachNameInput.focus();
+            return;
+          }
+          
+          if (coachName.length > 50) {
+            alert("❌ Tên không được vượt quá 50 ký tự!");
+            coachNameInput.focus();
+            return;
+          }
+          
+          if (!selectedTeamId) {
+            alert("❌ Vui lòng chọn một đội bóng!");
+            return;
+          }
+          
+          gameState.init(coachName, selectedTeamId);
+          router.navigate("dashboard");
+        } catch (e) {
+          console.error("Error starting game:", e);
+          alert("❌ Lỗi khi bắt đầu game!");
+        }
       });
     }
   }

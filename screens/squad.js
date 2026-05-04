@@ -2,13 +2,7 @@
 // SQUAD SCREEN
 // ============================================================
 import { gameState, formatCurrency } from "../engine/gameState.js";
-
-const POS_ORDER = ["GK","CB","LB","RB","CDM","CM","CAM","LM","RM","LW","RW","ST"];
-const POS_COLOR = {
-  GK:"#ffd700", CB:"#00aaff", LB:"#00aaff", RB:"#00aaff",
-  CDM:"#00ff88", CM:"#00ff88", CAM:"#00ff88", LM:"#00ff88", RM:"#00ff88",
-  LW:"#ff6600", RW:"#ff6600", ST:"#ff3333"
-};
+import { POS_ORDER, POS_COLOR } from "../data/constants.js";
 
 export function renderSquad(container, router) {
   const myPlayers = gameState.getMyPlayers();
@@ -19,13 +13,31 @@ export function renderSquad(container, router) {
   let filterPos = "ALL";
   let sortBy = "overall";
   let selectedPlayerId = null;
+  let listeners = []; // Store listeners for cleanup
+
+  function removeListeners() {
+    listeners.forEach(({ element, handler, type }) => {
+      if (element) {
+        element.removeEventListener(type, handler);
+      }
+    });
+    listeners = [];
+  }
+
+  function addListener(element, type, handler) {
+    if (element) {
+      element.addEventListener(type, handler);
+      listeners.push({ element, handler, type });
+    }
+  }
 
   function draw() {
+    removeListeners(); // Clean up old listeners
+    
     const filtered = sorted.filter((p) => filterPos === "ALL" || p.pos === filterPos);
     const sortedFiltered = [...filtered].sort((a, b) => {
       if (sortBy === "pos") {
-        const order = ["GK", "CB", "LB", "RB", "CDM", "CM", "CAM", "LM", "RM", "LW", "RW", "ST"];
-        return order.indexOf(a.pos) - order.indexOf(b.pos);
+        return POS_ORDER.indexOf(a.pos) - POS_ORDER.indexOf(b.pos);
       }
       if (typeof a[sortBy] === 'string') {
         return a[sortBy].localeCompare(b[sortBy]);
@@ -143,46 +155,69 @@ export function renderSquad(container, router) {
     `;
 
     // Attach Event Listeners
-    container.querySelectorAll(".filter-btn-sq").forEach(btn => {
-      btn.addEventListener("click", () => {
-        filterPos = btn.dataset.pos;
-        draw();
-      });
-    });
-
-    container.querySelectorAll(".sortable").forEach(th => {
-      th.addEventListener("click", () => {
-        sortBy = th.dataset.sort;
-        draw();
-      });
-    });
-
-    container.querySelectorAll(".player-row-sq").forEach(row => {
-      row.addEventListener("click", () => {
-        selectedPlayerId = parseInt(row.dataset.id);
-        draw();
-      });
-    });
-
-    const viewBtn = container.querySelector("#btn-view-profile");
-    if (viewBtn) {
-      viewBtn.addEventListener("click", () => {
-        const id = viewBtn.dataset.id;
-        router.navigate(`player/${id}`);
-      });
-    }
-
-    const sellBtn = container.querySelector("#btn-sell-player");
-    if (sellBtn) {
-      sellBtn.addEventListener("click", () => {
-        const id = parseInt(sellBtn.dataset.id);
-        const p = gameState.getPlayerById(id);
-        if (confirm(`Bán ${p.name} với giá ${formatCurrency(p.value)}?`)) {
-          gameState.sellPlayer(id, p.value);
-          selectedPlayerId = null;
+    try {
+      container.querySelectorAll(".filter-btn-sq").forEach(btn => {
+        const handler = () => {
+          filterPos = btn.dataset.pos;
           draw();
-        }
+        };
+        addListener(btn, "click", handler);
       });
+
+      container.querySelectorAll(".sortable").forEach(th => {
+        const handler = () => {
+          sortBy = th.dataset.sort;
+          draw();
+        };
+        addListener(th, "click", handler);
+      });
+
+      container.querySelectorAll(".player-row-sq").forEach(row => {
+        const handler = () => {
+          selectedPlayerId = parseInt(row.dataset.id);
+          draw();
+        };
+        addListener(row, "click", handler);
+      });
+
+      const viewBtn = container.querySelector("#btn-view-profile");
+      if (viewBtn) {
+        const handler = () => {
+          try {
+            const id = viewBtn.dataset.id;
+            router.navigate(`player/${id}`);
+          } catch (e) {
+            console.error("Error navigating to player profile:", e);
+            alert("❌ Lỗi khi xem chi tiết cầu thủ!");
+          }
+        };
+        addListener(viewBtn, "click", handler);
+      }
+
+      const sellBtn = container.querySelector("#btn-sell-player");
+      if (sellBtn) {
+        const handler = () => {
+          try {
+            const id = parseInt(sellBtn.dataset.id);
+            const p = gameState.getPlayerById(id);
+            if (!p) {
+              alert("❌ Không tìm thấy cầu thủ!");
+              return;
+            }
+            if (confirm(`Bán ${p.name} với giá ${formatCurrency(p.value)}?`)) {
+              gameState.sellPlayer(id, p.value);
+              selectedPlayerId = null;
+              draw();
+            }
+          } catch (e) {
+            console.error("Error selling player:", e);
+            alert("❌ Lỗi khi bán cầu thủ!");
+          }
+        };
+        addListener(sellBtn, "click", handler);
+      }
+    } catch (e) {
+      console.error("Error attaching event listeners in squad:", e);
     }
   }
 
