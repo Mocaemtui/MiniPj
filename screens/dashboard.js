@@ -10,7 +10,7 @@ export function renderDashboard(container, router) {
   const fin = gameState.getMyFinance();
   const myPlayers = gameState.getMyPlayers();
   const sortedTable = gameState.getSortedTable();
-  const myPos = sortedTable.findIndex((e) => e.teamId === team.id) + 1;
+  const myPos = team ? sortedTable.findIndex((e) => e.teamId === team.id) + 1 : 0;
 
   const topScorers = [...gameState.players]
     .filter((p) => p.goals > 0)
@@ -19,14 +19,14 @@ export function renderDashboard(container, router) {
 
   const recentNews = gameState.news.slice(0, 5);
 
-  const nextMatchTeamId = next ? (next.home === team.id ? next.away : next.home) : null;
+  const nextMatchTeamId = next && team ? (next.home === team.id ? next.away : next.home) : null;
   const nextMatchTeam = nextMatchTeamId ? gameState.getTeamById(nextMatchTeamId) : null;
-  const isHome = next?.home === team.id;
+  const isHome = next && team ? next.home === team.id : false;
 
   container.innerHTML = `
     <div class="screen-header">
       <div>
-        <h1 class="screen-title">${team.logo} ${team.name}</h1>
+        <h1 class="screen-title">${team ? team.logo : '⚽'} ${team ? team.name : 'Chưa chọn đội'}</h1>
         <p class="screen-subtitle">${gameState.getFormattedDate()}</p>
       </div>
       <div class="header-actions">
@@ -69,8 +69,8 @@ export function renderDashboard(container, router) {
           <h3>⚔️ Trận Tiếp Theo</h3>
           <div class="next-match">
             <div class="match-team">
-              <span class="match-team-logo">${team.logo}</span>
-              <span class="match-team-name">${team.name}</span>
+              <span class="match-team-logo">${team ? team.logo : '⚽'}</span>
+              <span class="match-team-name">${team ? team.name : 'Đội bóng'}</span>
             </div>
             <div class="match-vs">
               <span class="match-label">${isHome ? "Sân nhà" : "Sân khách"}</span>
@@ -118,7 +118,7 @@ export function renderDashboard(container, router) {
               <tbody>
                 ${sortedTable.map((e, i) => {
                   const t = gameState.getTeamById(e.teamId);
-                  const isMe = e.teamId === team.id;
+                  const isMe = team && e.teamId === team.id;
                   return `<tr class="${isMe ? "my-row" : ""}">
                     <td>${i + 1}</td>
                     <td class="team-cell">${t?.logo} ${t?.name}</td>

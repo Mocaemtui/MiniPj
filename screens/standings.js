@@ -97,7 +97,7 @@ export function renderStandings(container, router) {
             <tbody>
               ${sortedTable.map((e, i) => {
                 const t = gameState.getTeamById(e.teamId);
-                const isMe = e.teamId === myTeam.id;
+                const isMe = myTeam && e.teamId === myTeam.id;
                 
                 // Highlight champions league spots (1-4), europa (5-6), relegation (18-20)
                 let rankColor = "var(--text-dim)";

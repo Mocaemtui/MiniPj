@@ -96,33 +96,124 @@ for (let tId = 1; tId <= 20; tId++) {
     const pot = Math.min(99, ovr + (30 - age > 0 ? randInt(1, Math.max(2, 32 - age)) : 0));
     const wage = randInt(Math.max(20, valM), valM * 3) * 1000;
     
-    const attr = { technical: {}, mental: {}, physical: {} };
-    
-    const gen = (category, keys) => {
-      keys.forEach(k => {
-        let base = ovr;
-        // Logic boost based on position
-        if (pos === "ST" && (k === "finishing" || k === "positioning")) base += 5;
-        if (pos === "CB" && (k === "tackling" || k === "strength" || k === "heading")) base += 5;
-        if (["CM", "CAM"].includes(pos) && (k === "passing" || k === "vision" || k === "decisions")) base += 5;
-        if (["LW", "RW"].includes(pos) && (k === "pace" || k === "dribbling" || k === "acceleration")) base += 5;
-        if (pos === "GK" && (k === "reflexes" || k === "diving")) base += 5;
-
-        attr[category][k] = Math.min(99, Math.max(1, randInt(base - 5, base + 5)));
-      });
-    };
-
-    if (pos === "GK") {
-      gen("technical", ["diving", "handling", "kicking", "reflexes"]);
-      gen("mental", ["positioning", "communication", "composure", "decisions"]);
-    } else {
-      gen("technical", ["finishing", "passing", "dribbling", "tackling", "crossing", "firstTouch", "heading"]);
-      gen("mental", ["positioning", "vision", "composure", "aggression", "workRate", "decisions"]);
-    }
-    gen("physical", ["pace", "acceleration", "strength", "stamina", "jumping", "agility"]);
+    // Generate detailed position-specific attributes
+    const attr = generateAttributes(pos, ovr, age);
 
     PLAYERS.push(createPlayer(name, pos, age, ovr, pot, tId, wage, val, "XX", attr));
   });
+}
+
+// Advanced attribute generator based on position and overall rating
+function generateAttributes(pos, ovr, age) {
+  const attr = { technical: {}, mental: {}, physical: {} };
+  
+  // Age factor: younger players have better physical, older have better mental
+  const ageFactor = (30 - age) / 30; // 1.0 at age 20, 0 at age 50
+  
+  // Helper to generate fixed stat based on overall rating and position
+  const genStat = (base, min = 1, max = 99) => {
+    return Math.min(max, Math.max(min, Math.round(base)));
+  };
+  
+  // Position-specific attribute templates
+  const templates = {
+    GK: {
+      technical: { diving: 1.0, handling: 1.0, kicking: 0.7, reflexes: 1.0, passing: 0.5, firstTouch: 0.5 },
+      mental: { positioning: 1.0, communication: 0.9, composure: 0.9, decisions: 0.8, vision: 0.4, aggression: 0.3 },
+      physical: { jumping: 0.9, agility: 0.8, reflexes: 1.0, pace: 0.4, acceleration: 0.4, strength: 0.7, stamina: 0.5 }
+    },
+    CB: {
+      technical: { tackling: 1.0, heading: 0.9, passing: 0.6, firstTouch: 0.6, dribbling: 0.4, crossing: 0.3, finishing: 0.3 },
+      mental: { positioning: 1.0, decisions: 0.9, aggression: 0.9, composure: 0.8, vision: 0.5, workRate: 0.7 },
+      physical: { strength: 1.0, jumping: 0.9, stamina: 0.7, pace: 0.6, acceleration: 0.5, agility: 0.6 }
+    },
+    LB: {
+      technical: { crossing: 0.9, tackling: 0.8, dribbling: 0.8, passing: 0.7, firstTouch: 0.7, heading: 0.5, finishing: 0.4 },
+      mental: { positioning: 0.8, workRate: 0.9, vision: 0.7, decisions: 0.8, aggression: 0.7, composure: 0.7 },
+      physical: { pace: 0.9, stamina: 0.9, acceleration: 0.9, agility: 0.8, strength: 0.6, jumping: 0.6 }
+    },
+    RB: {
+      technical: { tackling: 0.9, crossing: 0.8, passing: 0.7, dribbling: 0.7, firstTouch: 0.7, heading: 0.5, finishing: 0.4 },
+      mental: { positioning: 0.9, workRate: 0.9, vision: 0.6, decisions: 0.8, aggression: 0.8, composure: 0.7 },
+      physical: { pace: 0.9, stamina: 0.9, acceleration: 0.8, strength: 0.7, agility: 0.7, jumping: 0.6 }
+    },
+    CDM: {
+      technical: { passing: 0.9, tackling: 0.9, firstTouch: 0.8, dribbling: 0.7, heading: 0.6, crossing: 0.4, finishing: 0.4 },
+      mental: { positioning: 0.9, decisions: 0.9, vision: 0.8, workRate: 0.9, aggression: 0.8, composure: 0.9 },
+      physical: { strength: 0.8, stamina: 0.9, pace: 0.6, acceleration: 0.5, agility: 0.6, jumping: 0.6 }
+    },
+    CM: {
+      technical: { passing: 0.9, firstTouch: 0.9, dribbling: 0.8, tackling: 0.6, crossing: 0.6, heading: 0.5, finishing: 0.5 },
+      mental: { vision: 0.9, decisions: 0.9, workRate: 0.9, positioning: 0.8, composure: 0.8, aggression: 0.6 },
+      physical: { stamina: 0.9, pace: 0.7, strength: 0.6, acceleration: 0.7, agility: 0.8, jumping: 0.5 }
+    },
+    CAM: {
+      technical: { passing: 0.9, dribbling: 0.9, firstTouch: 0.9, finishing: 0.7, crossing: 0.6, tackling: 0.3, heading: 0.3 },
+      mental: { vision: 1.0, decisions: 0.9, composure: 0.9, positioning: 0.8, aggression: 0.4, workRate: 0.6 },
+      physical: { agility: 0.9, acceleration: 0.9, pace: 0.7, stamina: 0.7, strength: 0.4, jumping: 0.4 }
+    },
+    LW: {
+      technical: { dribbling: 1.0, crossing: 0.8, finishing: 0.8, passing: 0.7, firstTouch: 0.9, tackling: 0.3, heading: 0.4 },
+      mental: { vision: 0.8, composure: 0.8, decisions: 0.8, positioning: 0.7, aggression: 0.4, workRate: 0.7 },
+      physical: { pace: 1.0, acceleration: 1.0, agility: 1.0, stamina: 0.8, strength: 0.4, jumping: 0.5 }
+    },
+    RW: {
+      technical: { dribbling: 1.0, crossing: 0.9, finishing: 0.8, passing: 0.7, firstTouch: 0.9, tackling: 0.3, heading: 0.4 },
+      mental: { vision: 0.8, composure: 0.8, decisions: 0.8, positioning: 0.7, aggression: 0.4, workRate: 0.7 },
+      physical: { pace: 1.0, acceleration: 1.0, agility: 0.9, stamina: 0.8, strength: 0.4, jumping: 0.5 }
+    },
+    ST: {
+      technical: { finishing: 1.0, firstTouch: 0.8, dribbling: 0.7, heading: 0.8, passing: 0.5, crossing: 0.3, tackling: 0.3 },
+      mental: { positioning: 0.9, composure: 0.9, decisions: 0.8, vision: 0.5, aggression: 0.6, workRate: 0.6 },
+      physical: { strength: 0.8, jumping: 0.8, pace: 0.7, acceleration: 0.8, stamina: 0.7, agility: 0.7 }
+    }
+  };
+  
+  const tmpl = templates[pos] || templates.CM;
+  
+  // Generate Technical Attributes
+  if (pos === "GK") {
+    attr.technical.diving = genStat(ovr * tmpl.technical.diving);
+    attr.technical.handling = genStat(ovr * tmpl.technical.handling);
+    attr.technical.kicking = genStat(ovr * tmpl.technical.kicking);
+    attr.technical.reflexes = genStat(ovr * tmpl.technical.reflexes);
+    attr.technical.passing = genStat(ovr * tmpl.technical.passing);
+    attr.technical.firstTouch = genStat(ovr * tmpl.technical.firstTouch);
+  } else {
+    attr.technical.finishing = genStat(ovr * tmpl.technical.finishing);
+    attr.technical.passing = genStat(ovr * tmpl.technical.passing);
+    attr.technical.dribbling = genStat(ovr * tmpl.technical.dribbling);
+    attr.technical.tackling = genStat(ovr * tmpl.technical.tackling);
+    attr.technical.crossing = genStat(ovr * tmpl.technical.crossing);
+    attr.technical.firstTouch = genStat(ovr * tmpl.technical.firstTouch);
+    attr.technical.heading = genStat(ovr * tmpl.technical.heading);
+  }
+  
+  // Generate Mental Attributes
+  attr.mental.positioning = genStat(ovr * tmpl.mental.positioning);
+  attr.mental.vision = genStat(ovr * tmpl.mental.vision);
+  attr.mental.composure = genStat(ovr * tmpl.mental.composure + (1 - ageFactor) * 5); // Older players calmer
+  attr.mental.aggression = genStat(ovr * tmpl.mental.aggression);
+  attr.mental.workRate = genStat(ovr * tmpl.mental.workRate);
+  attr.mental.decisions = genStat(ovr * tmpl.mental.decisions + (1 - ageFactor) * 5); // Older players wiser
+  
+  if (pos === "GK") {
+    attr.mental.communication = genStat(ovr * tmpl.mental.communication);
+  }
+  
+  // Generate Physical Attributes
+  attr.physical.pace = genStat(ovr * tmpl.physical.pace + ageFactor * 10); // Younger faster
+  attr.physical.acceleration = genStat(ovr * tmpl.physical.acceleration + ageFactor * 10);
+  attr.physical.strength = genStat(ovr * tmpl.physical.strength + (1 - ageFactor) * 5); // Older stronger
+  attr.physical.stamina = genStat(ovr * tmpl.physical.stamina);
+  attr.physical.jumping = genStat(ovr * tmpl.physical.jumping);
+  attr.physical.agility = genStat(ovr * tmpl.physical.agility + ageFactor * 5);
+  
+  if (pos === "GK") {
+    attr.physical.reflexes = genStat(ovr * tmpl.physical.reflexes + ageFactor * 10);
+  }
+  
+  return attr;
 }
 
 export const getPlayerById = (id) => PLAYERS.find((p) => p.id === id);

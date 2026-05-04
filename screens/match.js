@@ -131,6 +131,7 @@ export function renderMatch(container, router) {
               <button class="btn-danger btn-full" id="btn-stop-match">⏹ Dừng</button>
             ` : `
               <button class="btn-primary btn-full" id="btn-finish-dash">🏠 Dashboard</button>
+              <button class="btn-secondary btn-full" id="btn-view-squad" style="margin-top:10px">👥 Đội hình</button>
             `}
           </div>
 
