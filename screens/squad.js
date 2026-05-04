@@ -22,7 +22,16 @@ export function renderSquad(container, router) {
 
   function draw() {
     const filtered = sorted.filter((p) => filterPos === "ALL" || p.pos === filterPos);
-    const sortedFiltered = [...filtered].sort((a, b) => b[sortBy] - a[sortBy]);
+    const sortedFiltered = [...filtered].sort((a, b) => {
+      if (sortBy === "pos") {
+        const order = ["GK", "CB", "LB", "RB", "CDM", "CM", "CAM", "LM", "RM", "LW", "RW", "ST"];
+        return order.indexOf(a.pos) - order.indexOf(b.pos);
+      }
+      if (typeof a[sortBy] === 'string') {
+        return a[sortBy].localeCompare(b[sortBy]);
+      }
+      return b[sortBy] - a[sortBy];
+    });
     const selectedPlayer = selectedPlayerId ? gameState.getPlayerById(selectedPlayerId) : null;
 
     container.innerHTML = `
@@ -50,12 +59,13 @@ export function renderSquad(container, router) {
               <table class="league-table-mini">
                 <thead>
                   <tr style="position:sticky; top:0; background:var(--bg-card); box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
-                    <th>Tên</th>
-                    <th>Vị trí</th>
-                    <th>Tuổi</th>
-                    <th>Chỉ số</th>
-                    <th>Thể lực</th>
-                    <th>Giá trị</th>
+                    <th class="sortable" data-sort="name">Tên</th>
+                    <th class="sortable" data-sort="pos">Vị trí</th>
+                    <th class="sortable" data-sort="age">Tuổi</th>
+                    <th class="sortable" data-sort="overall">Chỉ số</th>
+                    <th class="sortable" data-sort="fitness">Thể lực</th>
+                    <th class="sortable" data-sort="wage">Lương</th>
+                    <th class="sortable" data-sort="value">Giá trị</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -67,6 +77,7 @@ export function renderSquad(container, router) {
                       <td>${p.age}</td>
                       <td><strong style="color:var(--primary)">${p.overall}</strong></td>
                       <td>${p.fitness}%</td>
+                      <td style="color:var(--primary)">${formatCurrency(p.wage)}</td>
                       <td>${formatCurrency(p.value)}</td>
                     </tr>
                   `).join("")}
@@ -122,8 +133,9 @@ export function renderSquad(container, router) {
               `).join("")}
             </div>
 
-            <div style="margin-top:20px">
-              <button class="btn-primary btn-full" id="btn-sell-player" data-id="${selectedPlayer.id}" style="width:100%">Bán cầu thủ</button>
+            <div style="margin-top:20px; display:flex; gap:10px;">
+              <button class="btn-primary" id="btn-view-profile" data-id="${selectedPlayer.id}" style="flex:1">🔍 Chi tiết</button>
+              <button class="btn-danger" id="btn-sell-player" data-id="${selectedPlayer.id}" style="flex:1">💰 Bán</button>
             </div>
           ` : ""}
         </div>
@@ -138,12 +150,27 @@ export function renderSquad(container, router) {
       });
     });
 
+    container.querySelectorAll(".sortable").forEach(th => {
+      th.addEventListener("click", () => {
+        sortBy = th.dataset.sort;
+        draw();
+      });
+    });
+
     container.querySelectorAll(".player-row-sq").forEach(row => {
       row.addEventListener("click", () => {
         selectedPlayerId = parseInt(row.dataset.id);
         draw();
       });
     });
+
+    const viewBtn = container.querySelector("#btn-view-profile");
+    if (viewBtn) {
+      viewBtn.addEventListener("click", () => {
+        const id = viewBtn.dataset.id;
+        router.navigate(`player/${id}`);
+      });
+    }
 
     const sellBtn = container.querySelector("#btn-sell-player");
     if (sellBtn) {

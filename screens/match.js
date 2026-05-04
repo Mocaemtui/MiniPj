@@ -66,55 +66,89 @@ export function renderMatch(container, router) {
         </div>
       </div>
 
-      <!-- Stats -->
-      ${matchStarted ? `
-      <div class="match-stats glass-card">
-        <h3>📊 Thống Kê</h3>
-        <div class="stats-grid">
-          ${renderStat("Bàn thắng kỳ vọng (xG)", st.home.xG?.toFixed(2) || "0.00", st.away.xG?.toFixed(2) || "0.00")}
-          ${renderStat("Kiểm soát bóng", st.home.possession + "%", st.away.possession + "%", true)}
-          ${renderStat("Cú sút", st.home.shots, st.away.shots)}
-          ${renderStat("Trúng khung", st.home.shotsOnTarget, st.away.shotsOnTarget)}
-          ${renderStat("Đường chuyền", st.home.passes, st.away.passes)}
-          ${renderStat("Chuyền chính xác", st.home.passAccuracy + "%", st.away.passAccuracy + "%", true)}
-          ${renderStat("Tắc bóng", st.home.tackles, st.away.tackles)}
-          ${renderStat("Cứu thua", st.home.saves, st.away.saves)}
-          ${renderStat("Phạt góc", st.home.corners, st.away.corners)}
-          ${renderStat("Phạm lỗi", st.home.fouls, st.away.fouls)}
-          ${renderStat("Thẻ vàng", st.home.yellowCards, st.away.yellowCards)}
-        </div>
-      </div>` : ""}
-
-      <!-- Controls -->
-      <div class="match-controls glass-card">
-        ${!matchStarted ? `
-          <button class="btn-primary btn-big" id="btn-live">
-            ▶ Thi Đấu Trực Tiếp (Live)
-          </button>
-          <button class="btn-secondary btn-big" id="btn-sim-full">
-            ⚡ Mô Phỏng Nhanh
-          </button>
-          <button class="btn-ghost" id="btn-goto-tactics">
-            🧠 Điều chỉnh chiến thuật
-          </button>
-        ` : !matchFinished ? `
-          <button class="btn-danger" id="btn-stop-match">⏹ Dừng</button>
-        ` : `
-          <button class="btn-primary" id="btn-finish-dash">🏠 Về Dashboard</button>
-          <button class="btn-secondary" id="btn-view-squad">👥 Xem đội hình</button>
-        `}
-      </div>
-
-      <!-- Commentary -->
-      <div class="glass-card match-commentary">
-        <h3>🎙 Bình Luận</h3>
-        <div class="commentary-feed" id="commentary-feed">
-          ${events.length ? [...events].reverse().map((e) => `
-            <div class="commentary-item ${e.type}">
-              <span class="comm-minute">${e.minute}'</span>
-              <span class="comm-text">${e.text}</span>
+      <!-- Match Body -->
+      <div class="match-body" style="display:grid; grid-template-columns: 1fr 300px; gap:20px;">
+        <div class="match-main-col" style="display:flex; flex-direction:column; gap:20px;">
+          <!-- Stats -->
+          ${matchStarted ? `
+          <div class="match-stats glass-card">
+            <h3>📊 Thống Kê</h3>
+            <div class="stats-grid">
+              ${renderStat("Bàn thắng kỳ vọng (xG)", st.home.xG?.toFixed(2) || "0.00", st.away.xG?.toFixed(2) || "0.00")}
+              ${renderStat("Kiểm soát bóng", st.home.possession + "%", st.away.possession + "%", true)}
+              ${renderStat("Cú sút", st.home.shots, st.away.shots)}
+              ${renderStat("Trúng khung", st.home.shotsOnTarget, st.away.shotsOnTarget)}
+              ${renderStat("Đường chuyền", st.home.passes, st.away.passes)}
+              ${renderStat("Chuyền chính xác", st.home.passAccuracy + "%", st.away.passAccuracy + "%", true)}
+              ${renderStat("Tắc bóng", st.home.tackles, st.away.tackles)}
+              ${renderStat("Cứu thua", st.home.saves, st.away.saves)}
+              ${renderStat("Phạt góc", st.home.corners, st.away.corners)}
+              ${renderStat("Phạm lỗi", st.home.fouls, st.away.fouls)}
+              ${renderStat("Thẻ vàng", st.home.yellowCards, st.away.yellowCards)}
             </div>
-          `).join("") : '<div class="comm-placeholder">Chờ tiếng còi khai mạc... 🎺</div>'}
+          </div>` : ""}
+
+          <!-- Commentary -->
+          <div class="glass-card match-commentary" style="flex:1;">
+            <h3>🎙 Bình Luận</h3>
+            <div class="commentary-feed" id="commentary-feed" style="max-height:400px; overflow-y:auto;">
+              ${events.length ? [...events].reverse().map((e) => `
+                <div class="commentary-item ${e.type}">
+                  <span class="comm-minute">${e.minute}'</span>
+                  <span class="comm-text">${e.text}</span>
+                </div>
+              `).join("") : '<div class="comm-placeholder">Chờ tiếng còi khai mạc... 🎺</div>'}
+            </div>
+          </div>
+        </div>
+
+        <div class="match-side-col" style="display:flex; flex-direction:column; gap:20px;">
+          <!-- Controls -->
+          <div class="match-controls glass-card">
+            ${!matchStarted ? `
+              <button class="btn-primary btn-big btn-full" id="btn-live">▶ Thi Đấu (Live)</button>
+              <button class="btn-secondary btn-big btn-full" id="btn-sim-full" style="margin-top:10px">⚡ Mô Phỏng Nhanh</button>
+              <button class="btn-ghost btn-full" id="btn-goto-tactics" style="margin-top:10px">🧠 Đội hình</button>
+            ` : !matchFinished ? `
+              <button class="btn-danger btn-full" id="btn-stop-match">⏹ Dừng</button>
+            ` : `
+              <button class="btn-primary btn-full" id="btn-finish-dash">🏠 Dashboard</button>
+            `}
+          </div>
+
+          <!-- Quick Tactics -->
+          ${matchStarted && !matchFinished ? `
+          <div class="glass-card quick-tactics">
+            <h3 style="font-size:0.9rem; margin-bottom:15px;">🧠 CHIẾN THUẬT LIVE</h3>
+            
+            <div class="live-tactic-group" style="margin-bottom:15px;">
+              <label style="font-size:0.7rem; color:var(--text-dim); display:block; margin-bottom:5px;">TINH THẦN</label>
+              <div class="tactic-btns">
+                <button class="tactic-btn mini ${gameState.tactics.mentality === 'defensive' ? 'active' : ''}" data-key="mentality" data-val="defensive">🛡️</button>
+                <button class="tactic-btn mini ${gameState.tactics.mentality === 'balanced' ? 'active' : ''}" data-key="mentality" data-val="balanced">⚖️</button>
+                <button class="tactic-btn mini ${gameState.tactics.mentality === 'attacking' ? 'active' : ''}" data-key="mentality" data-val="attacking">⚔️</button>
+              </div>
+            </div>
+
+            <div class="live-tactic-group" style="margin-bottom:15px;">
+              <label style="font-size:0.7rem; color:var(--text-dim); display:block; margin-bottom:5px;">PRESSING</label>
+              <div class="tactic-btns">
+                <button class="tactic-btn mini ${gameState.tactics.pressing === 'low' ? 'active' : ''}" data-key="pressing" data-val="low">🐢</button>
+                <button class="tactic-btn mini ${gameState.tactics.pressing === 'medium' ? 'active' : ''}" data-key="pressing" data-val="medium">🚶</button>
+                <button class="tactic-btn mini ${gameState.tactics.pressing === 'high' ? 'active' : ''}" data-key="pressing" data-val="high">🔥</button>
+              </div>
+            </div>
+
+            <div class="live-tactic-group">
+              <label style="font-size:0.7rem; color:var(--text-dim); display:block; margin-bottom:5px;">NHỊP ĐỘ</label>
+              <div class="tactic-btns">
+                <button class="tactic-btn mini ${gameState.tactics.tempo === 'slow' ? 'active' : ''}" data-key="tempo" data-val="slow">🐌</button>
+                <button class="tactic-btn mini ${gameState.tactics.tempo === 'medium' ? 'active' : ''}" data-key="tempo" data-val="medium">🚶</button>
+                <button class="tactic-btn mini ${gameState.tactics.tempo === 'fast' ? 'active' : ''}" data-key="tempo" data-val="fast">💨</button>
+              </div>
+            </div>
+          </div>
+          ` : ""}
         </div>
       </div>
     `;
@@ -162,6 +196,17 @@ export function renderMatch(container, router) {
       container.querySelector("#btn-finish-dash")?.addEventListener("click", () => router.navigate("dashboard"));
       container.querySelector("#btn-view-squad")?.addEventListener("click", () => router.navigate("squad"));
     }
+
+    // Live Tactic Buttons
+    container.querySelectorAll(".tactic-btn.mini").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const key = btn.dataset.key;
+        const val = btn.dataset.val;
+        gameState.updateTactics({ [key]: val });
+        if (engine) engine.updateTactics();
+        draw(engine ? engine.homeScore : 0, engine ? engine.awayScore : 0, engine ? engine.events : [], engine ? engine.stats : null, null);
+      });
+    });
   }
 
   draw();

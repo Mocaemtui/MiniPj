@@ -5,9 +5,23 @@ import { gameState } from "../engine/gameState.js";
 
 export function renderStandings(container, router) {
   let activeTab = "table"; // "table" | "stats"
+  let sortBy = "points";
 
   function draw() {
-    const sortedTable = gameState.getSortedTable();
+    let sortedTable = [...gameState.getSortedTable()];
+    
+    if (sortBy !== "points") {
+      sortedTable.sort((a, b) => {
+        if (sortBy === "teamName") {
+          const nameA = gameState.getTeamById(a.teamId)?.name || "";
+          const nameB = gameState.getTeamById(b.teamId)?.name || "";
+          return nameA.localeCompare(nameB);
+        }
+        if (sortBy === "rank") return 0; // Default rank sorting
+        return b[sortBy] - a[sortBy];
+      });
+    }
+
     const team = gameState.getMyTeam();
     const topScorers = [...gameState.players]
       .filter((p) => p.goals > 0)
@@ -52,6 +66,13 @@ export function renderStandings(container, router) {
         draw();
       });
     });
+
+    container.querySelectorAll(".sortable").forEach(th => {
+      th.addEventListener("click", () => {
+        sortBy = th.dataset.sort;
+        draw();
+      });
+    });
   }
 
   function renderTable(sortedTable, myTeam) {
@@ -61,16 +82,16 @@ export function renderStandings(container, router) {
           <table class="league-table-mini" style="width:100%; text-align:center;">
             <thead>
               <tr style="position:sticky; top:0; background:var(--bg-card); z-index:10; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
-                <th style="text-align:center; padding:15px">#</th>
-                <th style="text-align:left">Đội Bóng</th>
-                <th title="Trận đã đấu">Trận</th>
-                <th title="Thắng">T</th>
-                <th title="Hòa">H</th>
-                <th title="Thua">B</th>
-                <th title="Bàn thắng">BT</th>
-                <th title="Bàn thua">BB</th>
-                <th title="Hiệu số">HS</th>
-                <th title="Điểm số" style="color:var(--primary); font-weight:bold; font-size:1.1rem">Điểm</th>
+                <th class="sortable" data-sort="rank" style="text-align:center; padding:15px">#</th>
+                <th class="sortable" data-sort="teamName" style="text-align:left">Đội Bóng</th>
+                <th class="sortable" data-sort="played" title="Trận đã đấu">Trận</th>
+                <th class="sortable" data-sort="won" title="Thắng">T</th>
+                <th class="sortable" data-sort="drawn" title="Hòa">H</th>
+                <th class="sortable" data-sort="lost" title="Thua">B</th>
+                <th class="sortable" data-sort="gf" title="Bàn thắng">BT</th>
+                <th class="sortable" data-sort="ga" title="Bàn thua">BB</th>
+                <th class="sortable" data-sort="gd" title="Hiệu số">HS</th>
+                <th class="sortable" data-sort="points" title="Điểm số" style="color:var(--primary); font-weight:bold; font-size:1.1rem">Điểm</th>
               </tr>
             </thead>
             <tbody>

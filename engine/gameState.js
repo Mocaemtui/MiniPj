@@ -29,9 +29,18 @@ class GameState {
       tempo: "medium",
       width: "medium",
       setpieces: "default",
+      customSlots: null         // Will store {pos, x, y}[]
     };
     this.negotiations = [];     // Active negotiations
     this._listeners = {};
+
+    // Auto-save on every state change
+    this.on("stateChanged", () => this.autoSave());
+  }
+
+  autoSave() {
+    if (!this.initialized) return;
+    this.saveGame(true); // silent save
   }
 
   // ---- Initialization ----
@@ -58,6 +67,15 @@ class GameState {
     // Default lineup: first 11 players of team
     const myPlayers = this.players.filter((p) => p.teamId === teamId);
     this.lineup = myPlayers.slice(0, 11).map((p) => p.id);
+
+    // Initialize stats for all players if they don't exist
+    this.players.forEach(p => {
+      p.goals = p.goals || 0;
+      p.assists = p.assists || 0;
+      p.appearances = p.appearances || 0;
+      p.morale = p.morale || 70;
+      p.fitness = p.fitness || 100;
+    });
 
     this.initialized = true;
     this.addNews("🎉 Chào mừng bạn trở thành HLV mới!", `Bạn đã được bổ nhiệm làm huấn luyện viên trưởng của ${team.name}.`);
@@ -144,9 +162,26 @@ class GameState {
     fin.history.push({ week: this.week, balance: fin.balance });
     fin.expenses.wages += wages;
 
-    // Player fitness recovery
+    // Player growth & recovery
     this.players.forEach((p) => {
+      // Recovery
       if (p.fitness < 100) p.fitness = Math.min(100, p.fitness + 15);
+      if (p.morale < 100) p.morale = Math.min(100, p.morale + 5);
+
+      // Development (Training)
+      if (!p.injured && p.age < 30) {
+        const potential = p.potential || (p.overall + 5);
+        if (p.overall < potential && Math.random() < 0.1) {
+          p.overall += 1;
+          if (p.teamId === this.playerTeamId) {
+            this.addNews("📈 Cầu thủ tiến bộ", `${p.name} đã tập luyện rất chăm chỉ và tăng 1 chỉ số Overall!`);
+          }
+        }
+      } else if (p.age > 33 && Math.random() < 0.05) {
+        p.overall -= 1; // Decline
+      }
+
+      // Injury recovery
       if (p.injured) {
         p.injuryDays -= 7;
         if (p.injuryDays <= 0) {
@@ -372,7 +407,7 @@ class GameState {
   }
 
   // ---- Save/Load System ----
-  saveGame() {
+  saveGame(silent = false) {
     const saveData = {
       initialized: this.initialized,
       coach: this.coach,
@@ -393,11 +428,11 @@ class GameState {
     };
     try {
       localStorage.setItem("fm26_save", JSON.stringify(saveData));
-      this.addNotification("💾 Đã lưu game thành công!", "success");
+      if (!silent) this.addNotification("💾 Đã lưu game thành công!", "success");
       return true;
     } catch (e) {
       console.error("Save failed", e);
-      this.addNotification("❌ Lỗi khi lưu game!", "error");
+      if (!silent) this.addNotification("❌ Lỗi khi lưu game!", "error");
       return false;
     }
   }

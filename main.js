@@ -29,6 +29,7 @@ import { renderMatch } from "./screens/match.js";
 import { renderTransfer } from "./screens/transfer.js";
 import { renderNegotiations } from "./screens/negotiations.js";
 import { renderStandings } from "./screens/standings.js";
+import { renderPlayerDetails } from "./screens/playerDetails.js";
 
 // ---- Router ----
 class Router {
@@ -44,10 +45,15 @@ class Router {
       match: renderMatch,
       transfer: renderTransfer,
       negotiations: renderNegotiations,
+      player: renderPlayerDetails
     };
   }
 
-  navigate(screen) {
+  navigate(path) {
+    const parts = path.split("/");
+    const screen = parts[0];
+    const params = { id: parts[1] };
+
     if (!this.routes[screen]) return;
     this.currentScreen = screen;
 
@@ -56,20 +62,21 @@ class Router {
       el.classList.toggle("active", el.dataset.screen === screen);
     });
 
-    // Show/hide sidebar
+    // Show/hide sidebar & header
     const sidebar = document.getElementById("sidebar");
+    const topHeader = document.getElementById("top-header");
     if (screen === "menu") {
       sidebar.style.display = "none";
-      document.getElementById("app").classList.remove("has-sidebar");
+      if (topHeader) topHeader.style.display = "none";
     } else {
       sidebar.style.display = "flex";
-      document.getElementById("app").classList.add("has-sidebar");
+      if (topHeader) topHeader.style.display = "flex";
     }
 
     // Render
     this.container.innerHTML = "";
     this.container.scrollTop = 0;
-    this.routes[screen](this.container, this);
+    this.routes[screen](this.container, this, params);
 
     // Update header info
     this.updateHeader();

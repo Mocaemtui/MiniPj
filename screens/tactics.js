@@ -74,6 +74,7 @@ export function renderTactics(container, router) {
     gameState.tactics.customSlots = JSON.parse(JSON.stringify(FORMATIONS[formation] || FORMATIONS["4-4-2"]));
   }
   let currentSlots = [...gameState.tactics.customSlots];
+  let benchSort = "overall"; // "overall" | "pos" | "age"
 
   function getPlayerForSlot(slotIndex) {
     const pid = lineup[slotIndex];
@@ -82,6 +83,15 @@ export function renderTactics(container, router) {
 
   function draw() {
     const bench = myPlayers.filter((p) => !lineup.includes(p.id));
+    const sortedBench = [...bench].sort((a, b) => {
+      if (benchSort === "overall") return b.overall - a.overall;
+      if (benchSort === "age") return b.age - a.age;
+      if (benchSort === "pos") {
+        const order = ["GK", "CB", "LB", "RB", "CDM", "CM", "CAM", "LM", "RM", "LW", "RW", "ST"];
+        return order.indexOf(a.pos) - order.indexOf(b.pos);
+      }
+      return 0;
+    });
 
     container.innerHTML = `
       <div class="screen-header">
@@ -89,9 +99,9 @@ export function renderTactics(container, router) {
         <p class="screen-subtitle">Kéo thả cầu thủ trên sân để tùy chỉnh vị trí tự do.</p>
       </div>
 
-      <div class="tactics-layout" style="display:flex; gap:30px; height: calc(100vh - 160px); min-height: 700px; overflow:hidden;">
+      <div class="tactics-layout" style="display:flex; gap:30px; height: auto; padding-bottom: 50px;">
         <!-- Pitch -->
-        <div class="tactics-left" style="flex:1.5; display:flex; flex-direction:column; align-items:center;">
+        <div class="tactics-left" style="flex:1.5; display:flex; flex-direction:column; align-items:center; min-width: 600px;">
           <div class="formation-selector" style="margin-bottom:15px; display:flex; gap:10px; flex-wrap:wrap; justify-content:center;">
             ${Object.keys(FORMATIONS).map((f) => `
               <button class="form-btn ${f === formation ? "active" : ""}" data-formation="${f}" style="padding:8px 16px; border-radius:8px;">${f}</button>
@@ -126,26 +136,42 @@ export function renderTactics(container, router) {
         </div>
 
         <!-- Right panel: Bench + Tactics -->
-        <div class="tactics-right" style="flex:1; display:flex; flex-direction:column; gap:20px; overflow:hidden;">
+        <div class="tactics-right" style="flex:1; display:flex; flex-direction:column; gap:20px; overflow:hidden; min-width: 350px;">
           
-          <!-- Bench Grid (Now on Top) -->
-          <div class="glass-card bench-card" style="flex:2; display:flex; flex-direction:column; overflow:hidden; min-height: 400px;">
-            <h3 style="margin-bottom:15px; font-size:1rem; letter-spacing:1px;">🪑 DANH SÁCH DỰ BỊ</h3>
-            <div class="bench-list" style="flex:1; overflow-y:auto; padding-bottom: 30px;">
-              ${bench.map((p) => `
-                <div class="bench-player ${p.injured ? "injured" : ""}" data-id="${p.id}">
-                  <span class="bench-pos" style="color:${POS_COLOR_MAP[p.pos] || "#fff"}">${p.pos}</span>
-                  <span class="bench-name" style="color:#fff">${p.name ? shortName(p.name) : "Cầu thủ"}</span>
-                  <span class="bench-ov">${p.overall}</span>
-                  ${p.injured ? '<span class="bench-injured" style="position:absolute; top:5px; right:5px;">🚑</span>' : ""}
-                </div>
-              `).join("")}
+          <!-- Bench Grid -->
+          <div class="glass-card bench-card" style="flex:1.5; display:flex; flex-direction:column; overflow:hidden;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-shrink:0;">
+              <h3 style="margin:0; font-size:1rem; letter-spacing:1px;">🛋️ HÀNG DỰ BỊ (${sortedBench.length})</h3>
+              <div class="bench-sort-controls" style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:0.7rem; color:var(--text-dim)">Sắp xếp:</span>
+                <select id="bench-sort" style="background:rgba(255,255,255,0.05); border:1px solid var(--border); color:#fff; border-radius:4px; font-size:0.7rem; padding:2px 4px;">
+                  <option value="overall" ${benchSort === "overall" ? "selected" : ""}>Chỉ số</option>
+                  <option value="pos" ${benchSort === "pos" ? "selected" : ""}>Vị trí</option>
+                  <option value="age" ${benchSort === "age" ? "selected" : ""}>Tuổi</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="bench-list" style="flex:1; overflow-y:auto; padding-bottom: 20px;">
+              <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap:10px;">
+                ${sortedBench.map((p) => `
+                  <div class="bench-player-card glass-card bench-player ${p.injured ? "injured" : ""}" 
+                       draggable="true" data-id="${p.id}" 
+                       style="padding:10px; text-align:center; position:relative; cursor:grab; min-height:80px; display:flex; flex-direction:column; justify-content:center;">
+                    <div class="bench-ov" style="position:absolute; top:5px; right:5px; font-size:0.7rem; font-weight:800; color:var(--primary);">${p.overall}</div>
+                    <div class="bench-pos" style="font-size:0.65rem; color:${POS_COLOR_MAP[p.pos] || "#fff"}; font-weight:700; margin-bottom:5px;">${p.pos}</div>
+                    <div class="bench-name" style="font-size:0.85rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${shortName(p.name)}</div>
+                    <div class="bench-age" style="font-size:0.65rem; color:var(--text-dim); margin-top:3px;">${p.age} tuổi</div>
+                    ${p.injured ? '<span class="bench-injured" style="position:absolute; top:5px; left:5px; font-size:0.8rem">🚑</span>' : ""}
+                  </div>
+                `).join("")}
+              </div>
             </div>
           </div>
 
-          <!-- Tactics Settings (Now below) -->
-          <div class="glass-card tactics-sliders" style="flex:1;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+          <!-- Tactics Settings -->
+          <div class="glass-card tactics-sliders" style="flex:1; overflow-y:auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
               <h3 style="margin:0; font-size:1rem; letter-spacing:1px;">⚙️ CHIẾN THUẬT</h3>
               <div style="display:flex; gap:5px;">
                 <button class="btn-auto-pick" id="btn-auto-pick" title="Tự động chọn đội hình mạnh nhất">✨ Tự chọn</button>
@@ -153,8 +179,8 @@ export function renderTactics(container, router) {
               </div>
             </div>
 
-            <div class="tactic-option">
-              <label>Tinh thần thi đấu</label>
+            <div class="tactic-option" style="margin-bottom:12px;">
+              <label style="font-size:0.75rem; color:var(--text-dim); display:block; margin-bottom:5px;">TINH THẦN THI ĐẤU</label>
               <div class="tactic-btns">
                 <button class="tactic-btn ${gameState.tactics.mentality === 'defensive' ? "active" : ""}" data-key="mentality" data-val="defensive">🛡️ Thủ</button>
                 <button class="tactic-btn ${gameState.tactics.mentality === 'balanced' ? "active" : ""}" data-key="mentality" data-val="balanced">⚖️ Vừa</button>
@@ -162,8 +188,8 @@ export function renderTactics(container, router) {
               </div>
             </div>
 
-            <div class="tactic-option">
-              <label>Lối chơi (Pressing)</label>
+            <div class="tactic-option" style="margin-bottom:12px;">
+              <label style="font-size:0.75rem; color:var(--text-dim); display:block; margin-bottom:5px;">LỐI CHƠI (PRESSING)</label>
               <div class="tactic-btns">
                 <button class="tactic-btn ${gameState.tactics.pressing === 'low' ? "active" : ""}" data-key="pressing" data-val="low">🐢 Thấp</button>
                 <button class="tactic-btn ${gameState.tactics.pressing === 'medium' ? "active" : ""}" data-key="pressing" data-val="medium">🚶 Vừa</button>
@@ -171,8 +197,8 @@ export function renderTactics(container, router) {
               </div>
             </div>
 
-            <div class="tactic-option">
-              <label>Nhịp độ (Tempo)</label>
+            <div class="tactic-option" style="margin-bottom:15px;">
+              <label style="font-size:0.75rem; color:var(--text-dim); display:block; margin-bottom:5px;">NHỊP ĐỘ (TEMPO)</label>
               <div class="tactic-btns">
                 <button class="tactic-btn ${gameState.tactics.tempo === 'slow' ? "active" : ""}" data-key="tempo" data-val="slow">🐌 Chậm</button>
                 <button class="tactic-btn ${gameState.tactics.tempo === 'medium' ? "active" : ""}" data-key="tempo" data-val="medium">🚶 Vừa</button>
@@ -180,7 +206,7 @@ export function renderTactics(container, router) {
               </div>
             </div>
 
-            <button class="btn-primary btn-full" id="btn-save-tactics" style="margin-top:10px; height:45px; font-weight:700;">LƯU CHIẾN THUẬT</button>
+            <button class="btn-primary btn-full" id="btn-save-tactics" style="margin-top:5px; height:40px; font-weight:700;">LƯU CHIẾN THUẬT</button>
           </div>
         </div>
       </div>
@@ -408,6 +434,12 @@ export function renderTactics(container, router) {
       });
     });
 
+    // Bench Sort
+    container.querySelector("#bench-sort")?.addEventListener("change", (e) => {
+      benchSort = e.target.value;
+      draw();
+    });
+
     // Tactical buttons
     container.querySelectorAll(".tactic-btn").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -476,7 +508,8 @@ export function renderTactics(container, router) {
     // Save
     container.querySelector("#btn-save-tactics")?.addEventListener("click", () => {
       gameState.updateLineup(lineup);
-      showToast("✅ Đã lưu chiến thuật!");
+      gameState.updateTactics({ customSlots: currentSlots });
+      showToast("✅ Đã lưu chiến thuật và vị trí!");
     });
   }
 

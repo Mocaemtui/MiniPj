@@ -298,6 +298,12 @@ export class MatchEngine {
     if (this._intervalId) clearInterval(this._intervalId);
   }
 
+  updateTactics() {
+    // Recalculate metrics based on current game state (which might have changed)
+    this.homeMetrics = this._calcMetrics(this.homeTeamId);
+    this.awayMetrics = this._calcMetrics(this.awayTeamId);
+  }
+
   _finish() {
     const match = this._findMatch();
     if (match) gameState.updateMatchResult(match, this.homeScore, this.awayScore);
