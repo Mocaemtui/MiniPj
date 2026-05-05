@@ -7,6 +7,7 @@ import { LEAGUES, generateSchedule, initLeagueTable, sortTable } from "../data/l
 import { calendar, PRIORITY } from "../data/calendar.js";
 import { DailyProcessor } from "./dailyProcessor.js";
 import { initEventSystem } from "./eventSystem.js";
+import { DeadlineDayManager, ScoutingManager, AgentNegotiationManager, ClubAI, TransferOffer } from "./transferIndex.js";
 
 class GameState {
   constructor() {
@@ -40,6 +41,12 @@ class GameState {
     // New systems
     this.dailyProcessor = new DailyProcessor(this);
     this.eventSystem = null; // Initialized in init()
+    
+    // Transfer systems
+    this.deadlineDayManager = new DeadlineDayManager(this);
+    this.scoutingManager = new ScoutingManager(this);
+    this.agentNegotiationManager = new AgentNegotiationManager(this);
+    this.activeTransferOffers = []; // Track pending offers
 
     // Auto-save on every state change
     this.on("stateChanged", () => this.autoSave());
@@ -588,6 +595,247 @@ class GameState {
   // Get my players (helper for daily processor)
   getMyPlayers() {
     return this.players.filter(p => p.teamId === this.playerTeamId);
+  }
+
+  // ---- TRANSFER SYSTEM METHODS ----
+
+  // Make transfer offer to another club
+  makeTransferOffer(playerId, toClubId, offerDetails) {
+    const player = this.getPlayerById(playerId);
+    const sellingClub = this.getTeamById(toClubId);
+    
+    if (!player || !sellingClub) return { success: false, error: 'Invalid player or club' };
+    if (player.teamId !== toClubId) return { success: false, error: 'Player not at that club' };
+    
+    const offer = new TransferOffer({
+      playerId,
+      fromClubId: this.playerTeamId,
+      toClubId,
+      ...offerDetails
+    });
+    
+    // AI evaluates offer
+    const clubAI = new ClubAI(sellingClub, this);
+    const isRival = clubAI.rivals.includes(this.playerTeamId);
+    const evaluation = clubAI.evaluateOffer(player, offer, { isRival });
+    
+    offer.response = evaluation.response;
+    offer.counterOffer = evaluation.counterOffer;
+    
+    this.activeTransferOffers.push(offer);
+    
+    return {
+      success: true,
+      offer,
+      evaluation,
+      message: evaluation.message
+    };
+  }
+
+  // Respond to counter offer
+  respondToCounter(offerId, response, newTerms = null) {
+    const offer = this.activeTransferOffers.find(o => o.id === offerId);
+    if (!offer) return { success: false, error: 'Offer not found' };
+    
+    if (response === 'accept') {
+      offer.response = 'accepted';
+      return this._initiateContractNegotiation(offer.playerId, offer);
+    } else if (response === 'reject') {
+      offer.response = 'rejected';
+      return { success: true, status: 'rejected' };
+    } else if (response === 'counter' && newTerms) {
+      // Send counter back
+      Object.assign(offer.financial, newTerms);
+      offer.response = 'pending';
+      return { success: true, status: 'counter_sent', offer };
+    }
+  }
+
+  // Internal: Start contract talks after fee agreed
+  _initiateContractNegotiation(playerId, offer) {
+    return this.agentNegotiationManager.startNegotiation(playerId, {
+      transferFee: offer.financial.totalValue,
+      buyingClubId: this.playerTeamId
+    });
+  }
+
+  // Conduct meeting with agent
+  conductAgentMeeting(playerId, proposedTerms) {
+    return this.agentNegotiationManager.conductMeeting(playerId, proposedTerms);
+  }
+
+  // Scout a player
+  scoutPlayer(playerId, scoutId = 'default', duration = 1) {
+    return this.scoutingManager.assignScout(playerId, scoutId, duration);
+  }
+
+  // Get scouting report for player
+  getScoutingReport(playerId) {
+    return this.scoutingManager.getPlayerVisibility(playerId);
+  }
+
+  // Search players with criteria
+  searchTransferTargets(criteria) {
+    return this.scoutingManager.searchPlayers(criteria);
+  }
+
+  // Check if today is deadline day
+  checkDeadlineDay() {
+    return this.deadlineDayManager.checkDeadlineDay();
+  }
+
+  // Get deadline day status
+  getDeadlineDayStatus() {
+    return this.deadlineDayManager.getStatus();
+  }
+
+  // Advance deadline day (call each hour during deadline day)
+  advanceDeadlineDay() {
+    return this.deadlineDayManager.advanceHour();
+  }
+
+  // List player for transfer
+  listPlayerForTransfer(playerId, status = 'listed') {
+    const player = this.getPlayerById(playerId);
+    if (!player || player.teamId !== this.playerTeamId) return false;
+    
+    player.transferStatus = status;
+    player.listedAt = new Date();
+    
+    this.addNews("📋 Cầu thủ được rao bán", `${player.name} đã được đưa vào danh sách chuyển nhượng.`);
+    return true;
+  }
+
+  // Handle AI offers for my listed players
+  processAITransferOffers() {
+    const listedPlayers = this.getMyPlayers().filter(p => 
+      p.transferStatus === 'listed' || p.transferStatus === 'unsettled'
+    );
+    
+    for (const player of listedPlayers) {
+      if (Math.random() < 0.3) { // 30% chance per day
+        const aiClubs = this.teams.filter(t => 
+          t.id !== this.playerTeamId && 
+          t.budget > (player.value || 1000000) * 0.8
+        );
+        
+        if (aiClubs.length > 0) {
+          const buyingClub = aiClubs[Math.floor(Math.random() * aiClubs.length)];
+          const offerValue = Math.round((player.value || 1000000) * (0.9 + Math.random() * 0.4));
+          
+          const offer = new TransferOffer({
+            playerId: player.id,
+            fromClubId: buyingClub.id,
+            toClubId: this.playerTeamId,
+            upfrontFee: offerValue
+          });
+          
+          this.activeTransferOffers.push(offer);
+          
+          this.notifications.push({
+            type: 'transfer_offer',
+            title: '📩 Đề nghị chuyển nhượng',
+            message: `${buyingClub.name} đề nghị €${(offerValue/1000000).toFixed(1)}M cho ${player.name}`,
+            offerId: offer.id,
+            playerId: player.id,
+            timestamp: new Date()
+          });
+        }
+      }
+    }
+  }
+
+  // Get pending transfer offers for my players
+  getPendingTransferOffers() {
+    return this.activeTransferOffers.filter(o => 
+      o.toClubId === this.playerTeamId && 
+      (o.response === 'pending' || o.response === 'counter_offer')
+    );
+  }
+
+  // Get my transfer targets (from scouting)
+  getTransferTargets() {
+    return this.scoutingManager.reports;
+  }
+
+  // Accept/reject transfer offer for my player
+  respondToTransferOffer(offerId, response, counterAmount = null) {
+    const offer = this.activeTransferOffers.find(o => o.id === offerId);
+    if (!offer || offer.toClubId !== this.playerTeamId) {
+      return { success: false, error: 'Offer not found or not for your player' };
+    }
+    
+    const player = this.getPlayerById(offer.playerId);
+    
+    if (response === 'accept') {
+      offer.response = 'accepted';
+      
+      // Execute transfer
+      player.teamId = offer.fromClubId;
+      
+      // Update budgets
+      const myTeam = this.getTeamById(this.playerTeamId);
+      const buyingTeam = this.getTeamById(offer.fromClubId);
+      
+      myTeam.budget = (myTeam.budget || 0) + offer.financial.totalValue;
+      buyingTeam.budget = (buyingTeam.budget || 0) - offer.financial.totalValue;
+      
+      // Remove from lineup if present
+      this.lineup = this.lineup.filter(id => id !== player.id);
+      
+      this.addNews("💰 Bán cầu thủ", 
+        `${player.name} đã chuyển đến ${buyingTeam.name} với giá €${(offer.financial.totalValue/1000000).toFixed(1)}M.`);
+      
+      return { success: true, status: 'completed' };
+      
+    } else if (response === 'reject') {
+      offer.response = 'rejected';
+      
+      // Check if player becomes unhappy
+      const unhappiness = this.agentNegotiationManager.checkPlayerHappinessAfterRejection(
+        offer.playerId, 
+        offer
+      );
+      
+      return { 
+        success: true, 
+        status: 'rejected',
+        unhappiness 
+      };
+      
+    } else if (response === 'counter' && counterAmount) {
+      offer.response = 'counter_offer';
+      offer.counterOffer = counterAmount;
+      
+      return { success: true, status: 'counter_sent', counterAmount };
+    }
+  }
+
+  // Get squad status summary for wage structure
+  getSquadWageStructure() {
+    const myPlayers = this.getMyPlayers();
+    const structure = {
+      star_player: { count: 0, totalWage: 0, players: [] },
+      key_player: { count: 0, totalWage: 0, players: [] },
+      first_team: { count: 0, totalWage: 0, players: [] },
+      rotation: { count: 0, totalWage: 0, players: [] },
+      prospect: { count: 0, totalWage: 0, players: [] }
+    };
+    
+    for (const p of myPlayers) {
+      const role = p.squadStatus || 'rotation';
+      if (structure[role]) {
+        structure[role].count++;
+        structure[role].totalWage += p.wage || 0;
+        structure[role].players.push({
+          id: p.id,
+          name: p.name,
+          wage: p.wage
+        });
+      }
+    }
+    
+    return structure;
   }
 }
 

@@ -1,7 +1,6 @@
 // ============================================================
 // MATCH ENGINE – Simulates a 90-minute football match
 // ============================================================
-import { gameState } from "./gameState.js";
 
 const FORMATIONS = {
   "4-4-2":  { GK:1, CB:2, LB:1, RB:1, CM:2, LM:1, RM:1, ST:2 },
@@ -12,9 +11,10 @@ const FORMATIONS = {
 };
 
 export class MatchEngine {
-  constructor(homeTeamId, awayTeamId) {
+  constructor(homeTeamId, awayTeamId, gameState) {
     this.homeTeamId = homeTeamId;
     this.awayTeamId = awayTeamId;
+    this.gs = gameState; // Avoid circular dependency
     this.homeScore = 0;
     this.awayScore = 0;
     this.minute = 0;
@@ -32,15 +32,15 @@ export class MatchEngine {
 
   // ---- Team metrics calculation ----
   _calcMetrics(teamId) {
-    const isPlayerTeam = teamId === gameState.playerTeamId;
+    const isPlayerTeam = teamId === this.gs.playerTeamId;
     let players;
 
     if (isPlayerTeam) {
-      players = gameState.lineup
-        .map((id) => gameState.getPlayerById(id))
+      players = this.gs.lineup
+        .map((id) => this.gs.getPlayerById(id))
         .filter(Boolean);
     } else {
-      players = gameState.players
+      players = this.gs.players
         .filter((p) => p.teamId === teamId && !p.injured)
         .slice(0, 11);
     }
@@ -243,10 +243,10 @@ export class MatchEngine {
   }
 
   _randomPlayer(teamId, preferredPos, excludeId = null) {
-    const isPlayerTeam = teamId === gameState.playerTeamId;
+    const isPlayerTeam = teamId === this.gs.playerTeamId;
     let pool = isPlayerTeam 
-      ? gameState.lineup.map((id) => gameState.getPlayerById(id)).filter(Boolean)
-      : gameState.players.filter((p) => p.teamId === teamId && !p.injured).slice(0, 11);
+      ? this.gs.lineup.map((id) => this.gs.getPlayerById(id)).filter(Boolean)
+      : this.gs.players.filter((p) => p.teamId === teamId && !p.injured).slice(0, 11);
     
     if (excludeId) pool = pool.filter(p => p.id !== excludeId);
     
@@ -306,22 +306,22 @@ export class MatchEngine {
 
   _finish() {
     const match = this._findMatch();
-    if (match) gameState.updateMatchResult(match, this.homeScore, this.awayScore);
+    if (match) this.gs.updateMatchResult(match, this.homeScore, this.awayScore);
 
-    const result = this.homeTeamId === gameState.playerTeamId
+    const result = this.homeTeamId === this.gs.playerTeamId
       ? (this.homeScore > this.awayScore ? "win" : this.homeScore < this.awayScore ? "loss" : "draw")
       : (this.awayScore > this.homeScore ? "win" : this.awayScore < this.homeScore ? "loss" : "draw");
 
-    const homeTeam = gameState.getTeamById(this.homeTeamId);
-    const awayTeam = gameState.getTeamById(this.awayTeamId);
+    const homeTeam = this.gs.getTeamById(this.homeTeamId);
+    const awayTeam = this.gs.getTeamById(this.awayTeamId);
     const resultText = `${homeTeam?.name || "?"} ${this.homeScore} – ${this.awayScore} ${awayTeam?.name || "?"}`;
 
     const emoji = result === "win" ? "🏆" : result === "loss" ? "💔" : "🤝";
-    gameState.addNews(`${emoji} Kết quả trận đấu`, resultText);
+    this.gs.addNews(`${emoji} Kết quả trận đấu`, resultText);
 
     // Update player appearances & fitness
-    gameState.lineup.forEach((id) => {
-      const p = gameState.getPlayerById(id);
+    this.gs.lineup.forEach((id) => {
+      const p = this.gs.getPlayerById(id);
       if (p) {
         p.appearances++;
         p.fitness = Math.max(40, p.fitness - Math.floor(Math.random() * 20) - 10);
@@ -329,7 +329,7 @@ export class MatchEngine {
         if (Math.random() < 0.05 && !p.injured) {
           p.injured = true;
           p.injuryDays = Math.floor(Math.random() * 28) + 7;
-          gameState.addNews("🚑 Chấn thương", `${p.name} bị chấn thương và sẽ vắng mặt ${p.injuryDays} ngày.`);
+          this.gs.addNews("🚑 Chấn thương", `${p.name} bị chấn thương và sẽ vắng mặt ${p.injuryDays} ngày.`);
         }
       }
     });
@@ -340,7 +340,7 @@ export class MatchEngine {
   }
 
   _findMatch() {
-    for (const round of gameState.schedule) {
+    for (const round of this.gs.schedule) {
       for (const m of round) {
         if (!m.played && m.home === this.homeTeamId && m.away === this.awayTeamId) return m;
       }
