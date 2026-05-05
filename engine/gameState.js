@@ -9,6 +9,8 @@ import { DailyProcessor } from "./dailyProcessor.js";
 import { initEventSystem } from "./eventSystem.js";
 import { DeadlineDayManager, ScoutingManager, AgentNegotiationManager, ClubAI, TransferOffer } from "./transferIndex.js";
 import { TrainingManager, YouthAcademy } from "./trainingSystem.js";
+import { CompetitionManager } from "../data/competitions.js";
+import { BoardSystem } from "./boardSystem.js";
 
 class GameState {
   constructor() {
@@ -52,6 +54,10 @@ class GameState {
     // Training systems
     this.trainingManager = new TrainingManager(this);
     this.youthAcademy = new YouthAcademy(this);
+    
+    // Competition & Board systems
+    this.competitionManager = new CompetitionManager(this);
+    this.boardSystem = new BoardSystem(this);
 
     // Auto-save on every state change
     this.on("stateChanged", () => this.autoSave());
