@@ -32,6 +32,7 @@ import { renderStandings } from "./screens/standings.js";
 import { renderPlayerDetails } from "./screens/playerDetails.js";
 import { renderTraining } from "./screens/training.js";
 import { renderYouth } from "./screens/youth.js";
+import { renderFinances } from "./screens/finances.js";
 
 // ---- Router ----
 class Router {
@@ -49,6 +50,7 @@ class Router {
       negotiations: renderNegotiations,
       training: renderTraining,
       youth: renderYouth,
+      finances: renderFinances,
       player: renderPlayerDetails
     };
   }
