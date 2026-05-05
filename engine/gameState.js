@@ -8,6 +8,7 @@ import { calendar, PRIORITY } from "../data/calendar.js";
 import { DailyProcessor } from "./dailyProcessor.js";
 import { initEventSystem } from "./eventSystem.js";
 import { DeadlineDayManager, ScoutingManager, AgentNegotiationManager, ClubAI, TransferOffer } from "./transferIndex.js";
+import { TrainingManager, YouthAcademy } from "./trainingSystem.js";
 
 class GameState {
   constructor() {
@@ -47,6 +48,10 @@ class GameState {
     this.scoutingManager = new ScoutingManager(this);
     this.agentNegotiationManager = new AgentNegotiationManager(this);
     this.activeTransferOffers = []; // Track pending offers
+    
+    // Training systems
+    this.trainingManager = new TrainingManager(this);
+    this.youthAcademy = new YouthAcademy(this);
 
     // Auto-save on every state change
     this.on("stateChanged", () => this.autoSave());

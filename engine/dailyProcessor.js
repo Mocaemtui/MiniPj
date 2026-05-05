@@ -12,7 +12,7 @@ export class DailyProcessor {
     this.abortController = null;
     this.progress = {
       step: 0,
-      total: 4,
+      total: 5,
       message: '',
       detail: '',
       playersProcessed: 0,
@@ -66,8 +66,14 @@ export class DailyProcessor {
         }
       }
       
-      // Bước 4: Tạo sự kiện ngẫu nhiên
+      // Bước 4: Xử lý huấn luyện
       this.progress.step = 4;
+      this.progress.message = "Huấn luyện cầu thủ...";
+      onProgress?.({ ...this.progress });
+      await this._processTraining(onEvent);
+      
+      // Bước 5: Tạo sự kiện ngẫu nhiên
+      this.progress.step = 5;
       this.progress.message = "Tạo tin tức và sự kiện...";
       onProgress?.({ ...this.progress });
       await this._generateRandomEvents(onEvent);
@@ -194,6 +200,24 @@ export class DailyProcessor {
       team.stats.points += 1;
     } else {
       team.stats.lost++;
+    }
+  }
+
+  async _processTraining(onEvent) {
+    // Process daily training using the training manager
+    if (this.gs.trainingManager) {
+      const results = this.gs.trainingManager.processDailyTraining(this.gs.date);
+      
+      // Notify about improvements
+      for (const result of results.slice(0, 3)) { // Limit to 3 notifications
+        if (result.improvements.length > 0) {
+          onEvent?.({
+            type: 'training_improvement',
+            player: result.playerName,
+            improvements: result.improvements
+          });
+        }
+      }
     }
   }
 
