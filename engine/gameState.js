@@ -4,6 +4,9 @@
 import { TEAMS } from "../data/teams.js";
 import { PLAYERS, getPlayerIdCounter, setPlayerIdCounter } from "../data/players.js";
 import { LEAGUES, generateSchedule, initLeagueTable, sortTable } from "../data/leagues.js";
+import { calendar, PRIORITY } from "../data/calendar.js";
+import { DailyProcessor } from "./dailyProcessor.js";
+import { initEventSystem } from "./eventSystem.js";
 
 class GameState {
   constructor() {
@@ -33,6 +36,10 @@ class GameState {
     };
     this.negotiations = [];     // Active negotiations
     this._listeners = {};
+    
+    // New systems
+    this.dailyProcessor = new DailyProcessor(this);
+    this.eventSystem = null; // Initialized in init()
 
     // Auto-save on every state change
     this.on("stateChanged", () => this.autoSave());
@@ -86,6 +93,13 @@ class GameState {
           p.attributes = { technical: {}, mental: {}, physical: {} };
         }
       });
+
+      // Initialize event system
+      this.eventSystem = initEventSystem(this);
+      
+      // Clear and setup calendar
+      calendar.clear();
+      this._setupCalendarEvents();
 
       this.initialized = true;
       this.addNews("🎉 Chào mừng bạn trở thành HLV mới!", `Bạn đã được bổ nhiệm làm huấn luyện viên trưởng của ${team.name}.`);
@@ -502,6 +516,78 @@ class GameState {
 
   static hasSave() {
     return !!localStorage.getItem("fm26_save");
+  }
+
+  // ---- Calendar & Event System ----
+  
+  _setupCalendarEvents() {
+    // Convert schedule to calendar events
+    for (const match of this.schedule || []) {
+      if (match.day && match.homeTeamId && match.awayTeamId) {
+        const date = new Date(2025, 0, 1);
+        date.setDate(date.getDate() + (match.week - 1) * 7 + match.day);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        calendar.addEvent({
+          type: 'match',
+          date: dateStr,
+          priority: PRIORITY.INFO,
+          title: 'Trận đấu',
+          description: `${this.getTeamById(match.homeTeamId)?.name} vs ${this.getTeamById(match.awayTeamId)?.name}`,
+          relatedIds: {
+            homeTeamId: match.homeTeamId,
+            awayTeamId: match.awayTeamId,
+            matchId: match.id
+          },
+          data: { match }
+        });
+      }
+    }
+  }
+
+  async processNextDay(onProgress, onEvent, onComplete) {
+    if (!this.initialized) return;
+    
+    const result = await this.dailyProcessor.processNextDay(
+      (progress) => {
+        // Update date for display
+        progress.currentDate = this._formatDate(this.date);
+        onProgress?.(progress);
+      },
+      (event) => {
+        onEvent?.(event);
+      }
+    );
+    
+    if (result.hasPlayerMatch) {
+      // Pause for player match
+      return result;
+    }
+    
+    if (result.success) {
+      this.emit("stateChanged");
+      onComplete?.();
+    }
+    
+    return result;
+  }
+
+  _formatDate(date) {
+    return date?.toLocaleDateString?.('vi-VN', { 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric' 
+    }) || date?.toISOString()?.split('T')[0] || '';
+  }
+
+  // Get all players (helper for daily processor)
+  getAllPlayers() {
+    return this.players;
+  }
+
+  // Get my players (helper for daily processor)
+  getMyPlayers() {
+    return this.players.filter(p => p.teamId === this.playerTeamId);
   }
 }
 
